@@ -1,0 +1,126 @@
+---
+title: "HW 3"
+author: "Leo Fowler   UT EID: ldf745"
+date: "2024-02-07"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r include = FALSE}
+options(repos = c(CRAN = "https://cran.rstudio.com"))
+install.packages("mosaic")
+install.packages("ggplot2")
+install.packages("tidyverse")
+library(ggplot2)
+library(tidyverse)
+library(mosaic)
+```
+
+## Problem 1
+## Part A
+
+```{r echo=FALSE}
+creatine <- read.csv("creatinine.csv")
+ggplot(data = creatine, aes(x=age, y=creatclear)) + geom_point() + 
+  geom_smooth(aes(x=age, y=creatclear), method='lm') + labs(x ='Age', y='Creatine Clearance', title = 'Distribution of Creatine Clearance for Age')
+creatmodel = lm(creatclear ~ age, data=creatine)
+coef(creatmodel)
+147.8129158-0.6198159*55
+```
+
+### We should expect a creatine clearance of 113.723 mL/minute for a 55-year-old. I determined this by graphing the data of patients age versus the patients creatine clearance rate and calculating a regression model based off of the graph. Then to find the expected value for a 55-year-old I multiplied the age coefficient by 55 and subtracted that from the intercept and got 113.723 mL/minute.
+
+## Part B
+### The creatine clearance changes with age by -0.6198159 mL/minute. I found this in the code from the previous part. I created the graph of patients age versus the patients creatine clearance rate and then wrote a code to get the equation of the line for the regression model. That gave me the age coefficient of -0.6198159 mL/minute which is how the ceratine clearance changes with age.
+
+## Part C
+
+```{r echo=FALSE}
+first <- 147.8129158-0.6198159*40
+135-first
+second <- 147.8129158-0.6198159*60
+112-second
+```
+
+### The 40-year-old has a healthier creatine clearance rate than the 60-year-old because when I subtracted their expected value from the actual value the result was higher for the 40-year-old. To find this I used the linear regression equation from the first part and plugged in both 40 and 60. Then I subtracted those values from the actual value for their respected ages and got a reuslt of 11.97972 for the 40-year-old and 1.376038 for the 60-year-old. I determined that the 40-year-old has a healthier creatine clearance rate because the difference in the actual value minus the expected value was much higher than that for the 60-year-old.
+
+## Problem 2
+
+```{r echo=FALSE}
+market <- read.csv("marketmodel.csv")
+perform_regression <- function(stock_name) {
+  stock_data <- select(market, Date, SPY, !!sym(stock_name))
+  regression_result <- lm(formula(paste(stock_name, '~ SPY')), data = stock_data)
+  intercept <- coef(regression_result)[1]
+  slope <- coef(regression_result)[2]
+  r_squared <- summary(regression_result)$r.squared
+  resulttib <- tibble( Ticker = stock_name, Intercept = intercept, Slope = slope, R_Squared = r_squared
+  )
+  return(resulttib)
+}
+resulttib <- tibble()
+stocks <- c('AAPL', 'GOOG', 'MRK', 'JNJ', 'WMT', 'TGT')
+for (stock in stocks) {
+  result <- perform_regression(stock)
+  resulttib <- bind_rows(resulttib, result)
+}
+print(resulttib)
+```
+
+#The beta of a stock is the percentage in an assets return given a 1% change in the market portfolio. For example if a firm has a beta of 0.86 that means that if the market portfolio increases by 1% then that frim would increase by 0.86%. Firms with a lower beta have less systematic risk than firms with a higher beta. A firm with a beta of zero means that the firm has no systematic risk and it doesn't react to any movemnet of the market. It possible for a firm to have a negative beta which means that the return is less than the riks for the rate and its good because it acts like insurance. The table above shows the intercept, slope, and R^2 for the regression model for the returns of each of the 6 stocks. The R^2 represents the proportion of variance in the stocks return explained by the variance in the return of the S&P 500. The stock with the lowest systematic risk is WNT because it has a slope or beta of 0.5189811 which is the lowest beta out of all of the stocks. The stock with the highest systematic risk is AAPL because it has a beta of 1.0656012 which is the highest out of all of the stocks.
+
+## Problem 3
+
+```{r echo=FALSE}
+covid <- read.csv("covid.csv")
+italy_data <- subset(covid, country == 'Italy')
+spain_data <- subset(covid, country == 'Spain')
+exp_growth_model <- function(x, a, b, c) {
+  return(a * exp(b * x) + c)
+}
+italy_fit <- nls(deaths ~ exp_growth_model(days_since_first_death, a, b, c),
+                 data = italy_data,
+                 start = list(a = 1, b = 0.1, c = 1))
+spain_fit <- nls(deaths ~ exp_growth_model(days_since_first_death, a, b, c),
+                 data = spain_data,
+                 start = list(a = 1, b = 0.1, c = 1))
+italy_params <- coef(italy_fit)
+spain_params <- coef(spain_fit)
+italy_growth_rate <- round(italy_params[2], 3)
+spain_growth_rate <- round(spain_params[2], 3)
+doubling_time_italy <- round(log(2) / italy_growth_rate, 0)
+doubling_time_spain <- round(log(2) / spain_growth_rate, 0)
+ggplot() +
+  geom_point(data = italy_data, aes(x = days_since_first_death, y = deaths, color = "Italy"), size = 2) +
+  geom_line(data = italy_data, aes(x = days_since_first_death, y = exp_growth_model(days_since_first_death, italy_params[1], italy_params[2], italy_params[3])), color = "orange") +
+  geom_point(data = spain_data, aes(x = days_since_first_death, y = deaths, color = "Spain"), size = 2) +
+  geom_line(data = spain_data, aes(x = days_since_first_death, y = exp_growth_model(days_since_first_death, spain_params[1], spain_params[2], spain_params[3])), color = "red") +
+  labs(title = "Exponential Growth Model for COVID-19 Deaths",
+       x = "Days Since First Death",
+       y = "Daily Deaths",
+       color = "Country") +
+  theme_minimal()
+cat("Italy Growth Rate:", italy_growth_rate, "per day\n")
+cat("Italy Doubling Time:", doubling_time_italy, "days\n")
+cat("Spain Growth Rate:", spain_growth_rate, "per day\n")
+cat("Spain Doubling Time:", doubling_time_spain, "days\n")
+```
+
+### The estimated growth rate for Italy is 0.04 per day and the doubling time for Italy is 17 days. For Spain the grwoth rate is 0.079 per day and the doubling time is 9 days. 
+
+## Problem 4
+
+```{r echo=FALSE}
+milk <- read.csv("milk.csv")
+power_law_model <- function(price, K, beta) {
+  return(K * price^beta)
+}
+start_values <- list(K = 1, beta = -0.5)
+fit <- nls(sales ~ power_law_model(price, K, beta), data = milk, start = start_values)
+params <- coef(fit)
+estimated_elasticity <- params['beta']
+cat("Estimated Price Elasticity of Demand:", estimated_elasticity, "\n")
+```
+
+### I found that the estimated price of elasticity of demand for milk is -1.768535. To find that value I first wrote a function that for the power model. Then I wrote a code to apply the power model to the dataset and lastly found the coeficient and calculated the estimated elasticity.
